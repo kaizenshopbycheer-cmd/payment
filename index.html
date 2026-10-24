@@ -54,13 +54,21 @@ input:focus{border-color:var(--p3);box-shadow:0 0 0 3px rgba(232,121,249,.3),0 0
 .btn2{flex:1;padding:12px;border-radius:14px;border:1px solid var(--line);background:rgba(168,85,247,.2);color:var(--tx);font:inherit;cursor:pointer;transition:.2s}
 .btn2:hover{background:var(--p2);box-shadow:0 0 18px var(--p1)}
 .foot{text-align:center;color:var(--mut);font-size:12px;margin-top:18px}
- 
+
 .banner{padding:0 0 20px}
 .hero{display:block;width:100%;height:auto;border-radius:24px 24px 0 0;animation:none}
 .banner::before{content:"";position:absolute;left:0;right:0;top:0;aspect-ratio:16/9;background:linear-gradient(180deg,transparent 55%,rgba(59,10,122,.85));z-index:1;pointer-events:none}
 .logowrap{position:relative;z-index:2;width:104px;height:104px;margin:-62px auto 8px;border-radius:50%;padding:4px;background:conic-gradient(#fff,#e879f9,#6366f1,#22d3ee,#a855f7,#fff);animation:spin 4s linear infinite;box-shadow:0 0 30px #e879f9}
 .logowrap .logo{display:block;width:100%;height:100%;margin:0;border-radius:50%;object-fit:cover;background:#fff;animation:spin 4s linear infinite reverse;filter:none}
 .banner h1,.banner .tag{position:relative;z-index:2}
+.timer{margin-top:14px;font-size:15px;color:#e9d5ff}
+.timer b{font-size:24px;font-variant-numeric:tabular-nums;color:#fff;text-shadow:0 0 12px #e879f9}
+.timer.low{color:#fda4af}.timer.low b{color:#fb7185;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:.35}}
+.exp{aspect-ratio:1;display:flex;align-items:center;justify-content:center;text-align:center;color:#6b21a8;font-weight:700;font-size:17px;line-height:1.7;background:#f3e8ff;border-radius:12px;padding:10px}
+.qrbox.dead{box-shadow:0 0 20px rgba(120,100,150,.5)}
+.qrbox.dead::before{animation:none;background:#6b5b8a}
+.btn2:disabled{opacity:.4;cursor:not-allowed}
 @media (prefers-reduced-motion:reduce){*{animation-duration:30s!important}}
 </style>
 </head>
@@ -73,7 +81,7 @@ input:focus{border-color:var(--p3);box-shadow:0 0 0 3px rgba(232,121,249,.3),0 0
     <h1 id="shopTitle">Kaizen Shop by.cheer</h1>
     <p class="tag">✦เช็คยอดเงินและชื่อบัญชีก่อนโอน✦</p>
   </div>
- 
+
   <div class="card">
     <label for="shop">ชื่อบัญชี</label>
     <input id="shop" value="รัตนพร แฉ****" maxlength="28">
@@ -82,26 +90,23 @@ input:focus{border-color:var(--p3);box-shadow:0 0 0 3px rgba(232,121,249,.3),0 0
     <div class="chips" id="chips"></div>
     <button class="go" id="go">⊹ ࣪ ˖ สร้างคิวอาร์โค้ด ˑ ִ ֗ ִ </button>
     <div class="err" id="err"></div>
- 
+
     <div id="out">
-      <div class="qrbox"><div class="qrin"><div class="pp">PromptPay · พร้อมเพย์</div><div id="qr"></div></div></div>
+      <div class="qrbox"><div class="qrin"><div class="pp">PromptPay · พร้อมเพย์</div><div id="qr"></div></div></div><div class="timer" id="timer"></div>
       <div class="sum"><span id="oshop"></span><br><span class="big" id="oamt"></span> <span>บาท</span></div>
       <div class="row"><button class="btn2" id="dl">⬇ บันทึกรูป</button></div>
     </div>
   </div>
   <div class="foot">𐔌ﺮ ͜     𓈒 ตรวจสอบชื่อบัญชีและยอดทุกครั้งก่อนกดยืนยันการโอน ֺ  𓏼  ͡ ֪ </div>
 </div>
- 
+
 <script>
 (function(){
 var $=function(i){return document.getElementById(i)};
 var KEY='ppqr-settings';
- 
-function syncTitle(){$('shopTitle').textContent=$('shop').value.trim()||'MY SHOP'}
-syncTitle();$('shop').addEventListener('input',syncTitle);
- 
+
 [20,50,100,199,299,500,1000].forEach(function(v){var b=document.createElement('button');b.className='chip';b.textContent='฿'+v;b.onclick=function(){$('amt').value=v;burst(innerWidth/2,innerHeight/2,18)};$('chips').appendChild(b)});
- 
+
 function f(id,val){return id+('0'+val.length).slice(-2)+val}
 function crc16(str){var c=0xFFFF;for(var i=0;i<str.length;i++){c^=str.charCodeAt(i)<<8;for(var j=0;j<8;j++)c=(c&0x8000)?((c<<1)^0x1021)&0xFFFF:(c<<1)&0xFFFF}return ('000'+c.toString(16).toUpperCase()).slice(-4)}
 function payload(id,amount){
@@ -110,7 +115,22 @@ function payload(id,amount){
   var acc=f('00','A000000677010111')+f(t,v);
   var p=f('00','01')+f('01','12')+f('29',acc)+f('53','764')+f('54',amount)+f('58','TH');
   p+='6304';return p+crc16(p)}
- 
+
+var tmr=null,END=0;
+function fmt(s){return ('0'+Math.floor(s/60)).slice(-2)+':'+('0'+s%60).slice(-2)}
+function stopT(){if(tmr){clearInterval(tmr);tmr=null}}
+function expire(){stopT();cur=null;
+  $('qr').innerHTML='<div class="exp">⏰ หมดเวลาแล้ว<br>กรุณากดสร้างคิวอาร์ใหม่</div>';
+  document.querySelector('.qrbox').classList.add('dead');
+  $('dl').disabled=true;$('timer').classList.remove('low');$('timer').innerHTML='⏰ หมดเวลา · โอนไม่ได้แล้ว'}
+function startTimer(){
+  stopT();END=Date.now()+600000;
+  document.querySelector('.qrbox').classList.remove('dead');$('dl').disabled=false;
+  function t(){var s=Math.max(0,Math.ceil((END-Date.now())/1000));
+    $('timer').innerHTML='⏳ ใช้ได้อีก <b>'+fmt(s)+'</b> นาที';
+    $('timer').classList.toggle('low',s<=60);
+    if(s<=0)expire()}
+  t();tmr=setInterval(t,500)}
 var cur=null;
 function build(){
   var id=atob('MDk1MDU0MTE1MQ=='),a=parseFloat($('amt').value.replace(/,/g,''));
@@ -122,14 +142,14 @@ function build(){
   $('qr').innerHTML=q.createSvgTag({cellSize:6,margin:0,scalable:true});
   $('oshop').textContent=$('shop').value.trim();
   $('oamt').textContent=Number(amount).toLocaleString('th-TH',{minimumFractionDigits:2});
-  cur={q:q,code:code,amount:amount};
+  cur={q:q,code:code,amount:amount};startTimer();
   var o=$('out');o.classList.remove('show');void o.offsetWidth;o.classList.add('show');
   try{localStorage.setItem(KEY,JSON.stringify({shop:$('shop').value}))}catch(e){}
   var r=o.getBoundingClientRect();window.scrollTo({top:scrollY+r.top-20,behavior:'smooth'});
   burst(innerWidth/2,innerHeight/2,90)}
 $('go').onclick=build;
 $('amt').addEventListener('keydown',function(e){if(e.key==='Enter')build()});
- 
+
 $('dl').onclick=function(){
   if(!cur)return;var n=cur.q.getModuleCount(),S=10,m=40,W=n*S+m*2,H=W+150;
   var c=document.createElement('canvas');c.width=W;c.height=H;var x=c.getContext('2d');
@@ -143,7 +163,7 @@ var cpb=$('cp');if(cpb)cpb.onclick=function(){
   if(!cur)return;var b=$('cp');
   function ok(){b.textContent='✔ คัดลอกแล้ว';setTimeout(function(){b.textContent='⧉ คัดลอกโค้ด'},1500)}
   try{navigator.clipboard.writeText(cur.code).then(ok,ok)}catch(e){ok()}};
- 
+
 /* floating background + confetti */
 var cv=$('fx'),cx=cv.getContext('2d'),P=[],W,H;
 function rs(){W=cv.width=innerWidth;H=cv.height=innerHeight}rs();addEventListener('resize',rs);
