@@ -69,6 +69,8 @@ input:focus{border-color:var(--p3);box-shadow:0 0 0 3px rgba(232,121,249,.3),0 0
 .qrbox.dead{box-shadow:0 0 20px rgba(120,100,150,.5)}
 .qrbox.dead::before{animation:none;background:#6b5b8a}
 .btn2:disabled{opacity:.4;cursor:not-allowed}
+input[readonly]{cursor:default;opacity:.85;caret-color:transparent}
+input[readonly]:focus{border-color:var(--line);box-shadow:none}
 @media (prefers-reduced-motion:reduce){*{animation-duration:30s!important}}
 </style>
 </head>
@@ -84,7 +86,7 @@ input:focus{border-color:var(--p3);box-shadow:0 0 0 3px rgba(232,121,249,.3),0 0
 
   <div class="card">
     <label for="shop">ชื่อบัญชี</label>
-    <input id="shop" value="รัตนพร แฉ****" maxlength="28">
+    <input id="shop" value="รัตนพร แฉ****" maxlength="28" readonly tabindex="-1">
     <label for="amt">กรอกยอดที่ต้องโอน (บาท)</label>
     <input id="amt" class="amt" inputmode="decimal" placeholder="0.00">
     <div class="chips" id="chips"></div>
