@@ -71,6 +71,11 @@ input:focus{border-color:var(--p3);box-shadow:0 0 0 3px rgba(232,121,249,.3),0 0
 .btn2:disabled{opacity:.4;cursor:not-allowed}
 input[readonly]{cursor:default;opacity:.85;caret-color:transparent}
 input[readonly]:focus{border-color:var(--line);box-shadow:none}
+.slip{margin-top:20px;padding-top:16px;border-top:1px dashed var(--line)}
+.sl{font-size:14px;color:var(--mut);margin-bottom:10px}
+.full{width:100%}
+.slipp{display:none;max-width:100%;max-height:280px;margin:12px auto 0;border-radius:14px;border:1px solid var(--line);box-shadow:0 0 24px rgba(168,85,247,.5)}
+.err.ok{color:#86efac}
 @media (prefers-reduced-motion:reduce){*{animation-duration:30s!important}}
 </style>
 </head>
@@ -97,6 +102,12 @@ input[readonly]:focus{border-color:var(--line);box-shadow:none}
       <div class="qrbox"><div class="qrin"><div class="pp">PromptPay · พร้อมเพย์</div><div id="qr"></div></div></div><div class="timer" id="timer"></div>
       <div class="sum"><span id="oshop"></span><br><span class="big" id="oamt"></span> <span>บาท</span></div>
       <div class="row"><button class="btn2" id="dl">⬇ บันทึกรูป</button></div>
+      <div class="slip"><div class="sl">โอนแล้ว? แนบสลิปส่งให้ร้านได้เลย</div>
+        <input type="file" id="slipf" accept="image/*" hidden>
+        <button class="btn2 full" id="slipb">📎 แนบสลิปโอนเงิน</button>
+        <img id="slipp" class="slipp" alt="สลิป">
+        <button class="go" id="slips" style="display:none;margin-top:12px">📤 ส่งสลิป</button>
+        <div class="err" id="slipm"></div></div>
     </div>
   </div>
   <div class="foot">𐔌ﺮ ͜     𓈒 ตรวจสอบชื่อบัญชีและยอดทุกครั้งก่อนกดยืนยันการโอน ֺ  𓏼  ͡ ֪ </div>
@@ -133,7 +144,7 @@ function startTimer(){
     $('timer').classList.toggle('low',s<=60);
     if(s<=0)expire()}
   t();tmr=setInterval(t,500)}
-var cur=null;
+var cur=null,lastAmt='';
 function build(){
   var id=atob('MDk1MDU0MTE1MQ=='),a=parseFloat($('amt').value.replace(/,/g,''));
   var err=$('err');err.textContent='';
@@ -144,7 +155,7 @@ function build(){
   $('qr').innerHTML=q.createSvgTag({cellSize:6,margin:0,scalable:true});
   $('oshop').textContent=$('shop').value.trim();
   $('oamt').textContent=Number(amount).toLocaleString('th-TH',{minimumFractionDigits:2});
-  cur={q:q,code:code,amount:amount};startTimer();
+  cur={q:q,code:code,amount:amount};lastAmt=amount;startTimer();
   var o=$('out');o.classList.remove('show');void o.offsetWidth;o.classList.add('show');
   try{localStorage.setItem(KEY,JSON.stringify({shop:$('shop').value}))}catch(e){}
   var r=o.getBoundingClientRect();window.scrollTo({top:scrollY+r.top-20,behavior:'smooth'});
@@ -166,6 +177,31 @@ var cpb=$('cp');if(cpb)cpb.onclick=function(){
   function ok(){b.textContent='✔ คัดลอกแล้ว';setTimeout(function(){b.textContent='⧉ คัดลอกโค้ด'},1500)}
   try{navigator.clipboard.writeText(cur.code).then(ok,ok)}catch(e){ok()}};
 
+/* slip -> discord webhook */
+var HOOK=atob('aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvd2ViaG9va3MvMTUyODI0NTQxNzIyODI0Mjk3NS9JdzlkNXdDSXhkdEdRZ1lWWGxmUkg1ek11TVVzZURlc0tHemxxQmRHWHRMalFDTjI3MnhQMWRORk9Mc3VYdmN2QnZBNQ=='),slipFile=null;
+$('slipb').onclick=function(){$('slipf').click()};
+$('slipf').onchange=function(){
+  var f=this.files[0],m=$('slipm');slipFile=null;m.textContent='';m.className='err';
+  if(!f)return;
+  if(!/^image\//.test(f.type)){m.textContent='กรุณาเลือกไฟล์รูปภาพ';return}
+  if(f.size>8*1024*1024){m.textContent='รูปใหญ่เกิน 8MB';return}
+  slipFile=f;var r=new FileReader();
+  r.onload=function(){$('slipp').src=r.result;$('slipp').style.display='block'};r.readAsDataURL(f);
+  $('slips').style.display='block';$('slips').disabled=false;$('slips').textContent='📤 ส่งสลิป'};
+$('slips').onclick=function(){
+  if(!slipFile)return;var b=$('slips'),m=$('slipm');
+  b.disabled=true;b.textContent='กำลังส่ง...';m.className='err';m.textContent='';
+  var ext=((slipFile.type.split('/')[1]||'png').replace('jpeg','jpg').replace(/[^a-z0-9]/gi,''))||'png';
+  var money=lastAmt?'฿ '+Number(lastAmt).toLocaleString('th-TH',{minimumFractionDigits:2}):'-';
+  var pl={username:'Kaizen Shop · สลิปโอนเงิน',embeds:[{title:'📥 มีสลิปโอนเงินใหม่',color:11032055,
+    fields:[{name:'ยอดที่โอน',value:money,inline:true},{name:'ชื่อบัญชี',value:$('shop').value||'-',inline:true}],
+    image:{url:'attachment://slip.'+ext},timestamp:new Date().toISOString()}]};
+  var fd=new FormData();fd.append('payload_json',JSON.stringify(pl));fd.append('files[0]',slipFile,'slip.'+ext);
+  fetch(HOOK,{method:'POST',body:fd}).then(function(r){
+    if(!r.ok)throw new Error(r.status);
+    m.className='err ok';m.textContent='✔ ส่งสลิปให้ร้านเรียบร้อยแล้ว ขอบคุณค่ะ 💜';
+    b.style.display='none';$('slipp').style.display='none';slipFile=null;$('slipf').value='';burst(innerWidth/2,innerHeight/2,70)
+  }).catch(function(e){b.disabled=false;b.textContent='📤 ส่งสลิปอีกครั้ง';var c=(e&&e.message)||'';m.textContent='ส่งไม่สำเร็จ กรุณาลองใหม่อีกครั้ง'+(/^\d+$/.test(c)?' (รหัส '+c+')':' (เชื่อมต่อดิสคอร์ดไม่ได้)')})};
 /* floating background + confetti */
 var cv=$('fx'),cx=cv.getContext('2d'),P=[],W,H;
 function rs(){W=cv.width=innerWidth;H=cv.height=innerHeight}rs();addEventListener('resize',rs);
